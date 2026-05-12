@@ -14,13 +14,16 @@ Modulo Python para integrar el analisis de IA con OpenAI.
 python -m pip install -r requirements.txt
 ```
 
-## Configurar variables
+## Configurar variables reales
 
-```powershell
-Copy-Item .env.example .env
+El backend carga las variables desde `.env` en la raiz del proyecto.
+
+```env
+OPENAI_API_KEY=tu_api_key_real
+OPENAI_MODEL=gpt-5-mini
 ```
 
-Luego define `OPENAI_API_KEY` en `.env`.
+`.env` esta ignorado por Git para evitar subir claves. `.env.example` queda solo como referencia publica.
 
 ## Ejecutar API
 

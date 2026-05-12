@@ -21,9 +21,13 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# Python virtual environments
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
 .envrc
+
+# Python virtual environments
 .venv/
 env/
 venv/

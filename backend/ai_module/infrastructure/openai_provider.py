@@ -9,7 +9,7 @@ from openai import OpenAI
 from backend.ai_module.domain.analysis import AnalysisRequest, AnalysisResult
 
 
-DEFAULT_MODEL = "gpt-5-mini"
+DEFAULT_MODEL = "gpt-5.4-mini"
 
 SYSTEM_PROMPT = (
     "Eres un asistente especializado en analisis financiero para detectar "
