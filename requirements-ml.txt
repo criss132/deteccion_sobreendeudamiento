@@ -1,0 +1,6 @@
+# Dependencias de modelado para activar cuando el entorno tenga ruedas
+# precompiladas disponibles, por ejemplo con Python oficial de Windows,
+# Conda o Miniforge.
+numpy
+pandas
+scikit-learn
