@@ -4,7 +4,7 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
   if (!datosCliente || !datosCliente.nombre) {
     return (
       <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif' }}>
-        <h2>Aún no hay datos para evaluar 🕵️‍♂️</h2>
+        <h2>Aún no hay datos para evaluar </h2>
         <p>Por favor, regrese a la pestaña "Registro de Cliente" y complete el flujo.</p>
       </div>
     );
