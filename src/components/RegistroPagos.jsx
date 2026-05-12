@@ -1,17 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-function RegistroPagos() {
+function RegistroPagos({ historialPagos, setHistorialPagos }) {
   const navigate = useNavigate();
   
-  const [historialPagos, setHistorialPagos] = useState([]);
-  
-
   const [pagoActual, setPagoActual] = useState({
-    fechaPago: '',
-    montoPagado: '',
-    retrasoDias: '0',
-    estadoPago: 'completado'
+    fechaPago: '', montoPagado: '', retrasoDias: '0', estadoPago: 'completado'
   });
 
   const manejarCambio = (e) => {
@@ -23,14 +17,11 @@ function RegistroPagos() {
 
   const agregarPago = (e) => {
     e.preventDefault();
+    // Guardamos en la memoria central (App.jsx)
     setHistorialPagos([...historialPagos, pagoActual]);
     
-
     setPagoActual({
-      fechaPago: '',
-      montoPagado: '',
-      retrasoDias: '0',
-      estadoPago: 'completado'
+      fechaPago: '', montoPagado: '', retrasoDias: '0', estadoPago: 'completado'
     });
   };
 
@@ -88,10 +79,7 @@ function RegistroPagos() {
             ))}
           </ul>
 
-          <button 
-            onClick={irADashboard} 
-            style={{ width: '100%', padding: '12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1em' }}
-          >
+          <button onClick={irADashboard} style={{ width: '100%', padding: '12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1em' }}>
             Finalizar y Evaluar Riesgo
           </button>
         </div>

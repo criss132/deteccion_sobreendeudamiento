@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 
-function RegistroCreditos() {
-  const navigate = useNavigate(); 
+function RegistroCreditos({ listaCreditos, setListaCreditos }) {
+  const navigate = useNavigate();
 
-  const [listaCreditos, setListaCreditos] = useState([]);
+  // El estado temporal del formulario sigue aquí
   const [creditoActual, setCreditoActual] = useState({
     monto: '', tasainteres: '', plazoMeses: '', cuotaMensual: '', estado: 'activo'
   });
@@ -15,7 +15,10 @@ function RegistroCreditos() {
 
   const agregarCredito = (e) => {
     e.preventDefault();
+    // Guardamos en la memoria central (App.jsx)
     setListaCreditos([...listaCreditos, creditoActual]);
+    
+    // Limpiamos el formulario temporal
     setCreditoActual({ monto: '', tasainteres: '', plazoMeses: '', cuotaMensual: '', estado: 'activo' });
   };
 
@@ -77,11 +80,8 @@ function RegistroCreditos() {
             ))}
           </ul>
           
-          <button 
-            onClick={irAPagos} 
-            style={{ width: '100%', padding: '12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1em' }}
-          >
-            Ver Historial de Pagos
+          <button onClick={irAPagos} style={{ width: '100%', padding: '12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1em' }}>
+            Continuar a Pagos
           </button>
         </div>
       )}
