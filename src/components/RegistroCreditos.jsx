@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Importar
+import { useNavigate } from 'react-router-dom'; 
 
 function RegistroCreditos() {
-  const navigate = useNavigate(); // 2. Inicializar
+  const navigate = useNavigate(); 
 
   const [listaCreditos, setListaCreditos] = useState([]);
   const [creditoActual, setCreditoActual] = useState({
@@ -77,7 +77,6 @@ function RegistroCreditos() {
             ))}
           </ul>
           
-          {/* NUEVO BOTÓN: Solo aparece si hay créditos registrados */}
           <button 
             onClick={irAPagos} 
             style={{ width: '100%', padding: '12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1em' }}

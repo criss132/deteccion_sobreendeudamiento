@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // 1. Importamos la herramienta
+import { useNavigate } from 'react-router-dom'; 
 
 function FormularioCliente() {
-  const navigate = useNavigate(); // 2. La inicializamos
+  const navigate = useNavigate();
 
   const [datosCliente, setDatosCliente] = useState({
     nombre: '',
@@ -22,7 +22,7 @@ function FormularioCliente() {
     e.preventDefault();
     console.log("Cliente guardado:", datosCliente);
     
-    // 3. ¡Magia! Enviamos al usuario a la pantalla de créditos automáticamente
+    
     navigate('/creditos'); 
   };
 

@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 function RegistroPagos() {
   const navigate = useNavigate();
   
-  // Lista para guardar el historial de pagos
   const [historialPagos, setHistorialPagos] = useState([]);
   
-  // Estado para el formulario del pago actual
+
   const [pagoActual, setPagoActual] = useState({
     fechaPago: '',
     montoPagado: '',
@@ -26,7 +25,7 @@ function RegistroPagos() {
     e.preventDefault();
     setHistorialPagos([...historialPagos, pagoActual]);
     
-    // Limpiamos para el siguiente pago
+
     setPagoActual({
       fechaPago: '',
       montoPagado: '',
@@ -77,7 +76,6 @@ function RegistroPagos() {
         </button>
       </form>
 
-      {/* Lista de pagos agregados */}
       {historialPagos.length > 0 && (
         <div style={{ marginTop: '20px' }}>
           <h3>Pagos Registrados ({historialPagos.length})</h3>
