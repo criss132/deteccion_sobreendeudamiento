@@ -4,6 +4,19 @@ import { CreditCard, Plus, Trash2, ChevronRight } from "lucide-react";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+function calcularCuotaMensual(monto, tasaAnualPorcentaje, plazoMeses) {
+  const principal = parseFloat(monto);
+  const tasaAnual = parseFloat(tasaAnualPorcentaje) / 100;
+  const plazo = parseInt(plazoMeses);
+
+  if (!principal || !plazo) return 0;
+
+  const tasaMensual = tasaAnual / 12;
+  if (!tasaMensual) return principal / plazo;
+
+  return principal * tasaMensual / (1 - (1 + tasaMensual) ** -plazo);
+}
+
 function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
   const navigate = useNavigate();
   const [cargando, setCargando] = useState(false);
@@ -19,6 +32,12 @@ function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
   const manejarCambio = (e) => {
     setCreditoActual({ ...creditoActual, [e.target.name]: e.target.value });
   };
+
+  const cuotaMensualEstimada = calcularCuotaMensual(
+    creditoActual.monto,
+    creditoActual.tasainteres,
+    creditoActual.plazoMeses,
+  );
 
   const agregarCredito = async (e) => {
     e.preventDefault();
@@ -174,6 +193,18 @@ function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
                 <option value="pagado">Cerrado / Pagado</option>
                 <option value="reestructurado">Reestructurado</option>
               </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">
+                Cuota Mensual Calculada
+              </label>
+              <div className="w-full px-4 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 font-semibold">
+                ${cuotaMensualEstimada.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </div>
             </div>
           </div>
 

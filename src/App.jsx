@@ -5,7 +5,7 @@ import {
   UserPlus,
   CreditCard,
   Wallet,
-  LayoutDashboard,
+  Users,
   User,
   LogOut,
 } from "lucide-react";
@@ -15,6 +15,7 @@ import FormularioCliente from "./components/FormularioCliente";
 import RegistroCreditos from "./components/RegistroCreditos";
 import RegistroPagos from "./components/RegistroPagos";
 import Dashboard from "./components/Dashboard";
+import Clientes from "./components/Clientes";
 
 function App() {
   // --- ESTADO DE AUTENTICACIÓN ---
@@ -30,6 +31,8 @@ function App() {
   });
   const [listaCreditos, setListaCreditos] = useState([]);
   const [historialPagos, setHistorialPagos] = useState([]);
+  const [resultadoIA, setResultadoIA] = useState(null);
+  const [errorIA, setErrorIA] = useState(null);
 
   const cerrarSesion = () => {
     // Al cerrar sesión, limpiamos la memoria y ocultamos el sistema
@@ -43,6 +46,8 @@ function App() {
     });
     setListaCreditos([]);
     setHistorialPagos([]);
+    setResultadoIA(null);
+    setErrorIA(null);
   };
 
   return (
@@ -67,6 +72,12 @@ function App() {
 
             <nav className="flex-1 px-4 py-6 space-y-2">
               <Link
+                to="/clientes"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors font-medium"
+              >
+                <Users className="w-5 h-5 text-slate-400" /> Clientes
+              </Link>
+              <Link
                 to="/"
                 className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors font-medium"
               >
@@ -85,13 +96,6 @@ function App() {
                 className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors font-medium"
               >
                 <Wallet className="w-5 h-5 text-slate-400" /> Historial de Pagos
-              </Link>
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium shadow-md mt-4"
-              >
-                <LayoutDashboard className="w-5 h-5 text-blue-200" /> Ver
-                Resultados
               </Link>
             </nav>
 
@@ -128,6 +132,18 @@ function App() {
             <div className="p-8 flex-1 overflow-auto">
               <Routes>
                 <Route
+                  path="/clientes"
+                  element={
+                    <Clientes
+                      setDatosCliente={setDatosCliente}
+                      setListaCreditos={setListaCreditos}
+                      setHistorialPagos={setHistorialPagos}
+                      setResultadoIA={setResultadoIA}
+                      setErrorIA={setErrorIA}
+                    />
+                  }
+                />
+                <Route
                   path="/"
                   element={
                     <FormularioCliente
@@ -150,8 +166,12 @@ function App() {
                   path="/pagos"
                   element={
                     <RegistroPagos
+                      datosCliente={datosCliente}
+                      listaCreditos={listaCreditos}
                       historialPagos={historialPagos}
                       setHistorialPagos={setHistorialPagos}
+                      setResultadoIA={setResultadoIA}
+                      setErrorIA={setErrorIA}
                     />
                   }
                 />
@@ -162,6 +182,10 @@ function App() {
                       datosCliente={datosCliente}
                       listaCreditos={listaCreditos}
                       historialPagos={historialPagos}
+                      resultadoIA={resultadoIA}
+                      errorIA={errorIA}
+                      setResultadoIA={setResultadoIA}
+                      setErrorIA={setErrorIA}
                     />
                   }
                 />

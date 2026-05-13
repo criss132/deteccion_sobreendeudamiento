@@ -9,13 +9,62 @@ import {
   User,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { analizarConIA } from "../api";
 
-function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
-  const [resultadoIA, setResultadoIA] = useState(null);
+function parseResultadoIA(resultadoIA) {
+  if (!resultadoIA?.content) return null;
+
+  try {
+    return JSON.parse(resultadoIA.content);
+  } catch {
+    return null;
+  }
+}
+
+function getRiskTheme(nivelRiesgo) {
+  const normalizado = String(nivelRiesgo || "").toLowerCase();
+
+  if (normalizado.includes("critico") || normalizado.includes("crítico") || normalizado.includes("alto")) {
+    return {
+      bg: "bg-red-50",
+      border: "border-red-200",
+      text: "text-red-700",
+      icon: "text-red-500",
+      IconoRiesgo: AlertTriangle,
+    };
+  }
+
+  if (normalizado.includes("medio")) {
+    return {
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      text: "text-amber-700",
+      icon: "text-amber-500",
+      IconoRiesgo: Info,
+    };
+  }
+
+  return {
+    bg: "bg-green-50",
+    border: "border-green-200",
+    text: "text-green-700",
+    icon: "text-green-500",
+    IconoRiesgo: CheckCircle,
+  };
+}
+
+function Dashboard({
+  datosCliente,
+  listaCreditos,
+  historialPagos,
+  resultadoIA,
+  errorIA,
+  setResultadoIA,
+  setErrorIA,
+}) {
   const [cargandoIA, setCargandoIA] = useState(false);
-  const [errorIA, setErrorIA] = useState(null);
+  const analisisIA = parseResultadoIA(resultadoIA);
 
   const ejecutarAnalisisIA = async () => {
     setCargandoIA(true);
@@ -33,7 +82,7 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
       setCargandoIA(false);
     }
   };
-  // 1. Pantalla vacía si el usuario entra directo sin llenar datos
+
   if (!datosCliente || !datosCliente.nombre) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-4">
@@ -41,11 +90,11 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
           <Activity className="w-16 h-16 text-slate-400" />
         </div>
         <h2 className="text-2xl font-bold text-slate-700">
-          Aún no hay datos para evaluar
+          Aun no hay datos para evaluar
         </h2>
         <p className="text-slate-500 max-w-md">
-          Por favor, inicie el proceso registrando la información básica del
-          cliente para que el motor pueda realizar el análisis.
+          Por favor, inicie el proceso registrando la informacion basica del
+          cliente para que el motor pueda realizar el analisis.
         </p>
         <Link
           to="/"
@@ -57,64 +106,34 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
     );
   }
 
-  // 2. Cálculos matemáticos preliminares
   const ingresos = parseFloat(datosCliente.ingresosM) || 0;
   const deudaTotal = listaCreditos.reduce(
     (total, credito) => total + parseFloat(credito.monto || 0),
     0,
   );
   const cuotaTotalMensual = listaCreditos.reduce(
-    (total, credito) => total + parseFloat(credito.cuotaMensual || 0),
+    (total, credito) => total + parseFloat(credito.cuota_mensual || 0),
     0,
   );
+  const porcentajeEndeudamiento = ingresos > 0
+    ? ((cuotaTotalMensual / ingresos) * 100).toFixed(1)
+    : "0.0";
 
-  let porcentajeEndeudamiento = 0;
-  if (ingresos > 0) {
-    porcentajeEndeudamiento = ((cuotaTotalMensual / ingresos) * 100).toFixed(1);
-  }
-
-  // 3. Lógica de Riesgo y colores dinámicos
-  let nivelRiesgo = "Bajo";
-  let alerta = "El cliente tiene un nivel de deuda manejable y saludable.";
-  let colorTheme = {
-    bg: "bg-green-50",
-    border: "border-green-200",
-    text: "text-green-700",
-    icon: "text-green-500",
-  };
-  let IconoRiesgo = CheckCircle;
-
-  if (porcentajeEndeudamiento > 60) {
-    nivelRiesgo = "Alto";
-    alerta =
-      "Crítico: El cliente compromete más del 60% de sus ingresos mensuales en cuotas.";
-    colorTheme = {
-      bg: "bg-red-50",
-      border: "border-red-200",
-      text: "text-red-700",
-      icon: "text-red-500",
-    };
-    IconoRiesgo = AlertTriangle;
-  } else if (porcentajeEndeudamiento > 40) {
-    nivelRiesgo = "Medio";
-    alerta =
-      "Precaución: Nivel de endeudamiento considerable. Requiere observación.";
-    colorTheme = {
-      bg: "bg-amber-50",
-      border: "border-amber-200",
-      text: "text-amber-700",
-      icon: "text-amber-500",
-    };
-    IconoRiesgo = Info;
-  }
+  const nivelRiesgo = analisisIA?.nivel_riesgo || "Pendiente";
+  const alerta = analisisIA?.justificacion || "Ejecuta la evaluacion de IA desde el registro de pagos para determinar el nivel de riesgo.";
+  const recomendacion = analisisIA?.recomendacion;
+  const factoresClave = Array.isArray(analisisIA?.factores_clave)
+    ? analisisIA.factores_clave
+    : [];
+  const colorTheme = getRiskTheme(nivelRiesgo);
+  const IconoRiesgo = colorTheme.IconoRiesgo;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Encabezado del Dashboard */}
       <div className="flex justify-between items-end mb-8">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">
-            Resultados de Evaluación
+            Resultados de Evaluacion
           </h2>
           <p className="text-slate-500 mt-1 flex items-center gap-2">
             <User className="w-4 h-4" />
@@ -130,7 +149,6 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
         </div>
       </div>
 
-      {/* FILA 1: Tarjetas de Métricas (KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="bg-blue-50 p-3 rounded-lg">
@@ -187,9 +205,7 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
         </div>
       </div>
 
-      {/* FILA 2: Diagnóstico y Consola de IA */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Panel de Nivel de Riesgo (Ocupa 1 columna) */}
         <div
           className={`col-span-1 rounded-xl border ${colorTheme.border} ${colorTheme.bg} p-8 flex flex-col items-center justify-center text-center shadow-sm`}
         >
@@ -204,23 +220,22 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
           </h1>
           <p className="text-sm font-medium text-slate-600 px-4">{alerta}</p>
           <div className="mt-6 text-xs text-slate-400 uppercase tracking-widest font-semibold">
-            Análisis Frontend Preliminar
+            Analisis determinado por IA
           </div>
         </div>
 
-        {/* Panel de Datos para el Backend (Ocupa 2 columnas) */}
         <div className="col-span-1 lg:col-span-2 bg-slate-900 rounded-xl border border-slate-800 shadow-lg overflow-hidden flex flex-col">
           <div className="bg-slate-800 px-6 py-4 flex justify-between items-center border-b border-slate-700">
             <h3 className="text-white font-semibold flex items-center gap-2">
               <Database className="w-4 h-4 text-blue-400" />
-              Análisis de IA (Backend)
+              Analisis de IA
             </h3>
             <button
               onClick={ejecutarAnalisisIA}
               disabled={cargandoIA}
               className="text-xs font-mono bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 rounded transition-colors"
             >
-              {cargandoIA ? "Analizando..." : "▶ Ejecutar análisis"}
+              {cargandoIA ? "Analizando..." : resultadoIA ? "Reintentar analisis" : "Ejecutar analisis"}
             </button>
           </div>
 
@@ -230,7 +245,7 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
             )}
             {!resultadoIA && !cargandoIA && !errorIA && (
               <p className="text-slate-500 text-sm">
-                Haz clic en "Ejecutar análisis" para consultar el modelo de IA.
+                El analisis se ejecuta al finalizar el registro de pagos.
               </p>
             )}
             {cargandoIA && (
@@ -239,13 +254,37 @@ function Dashboard({ datosCliente, listaCreditos, historialPagos }) {
               </p>
             )}
             {resultadoIA && (
-              <div>
-                <p className="text-slate-400 text-xs mb-2 font-mono">
+              <div className="space-y-4">
+                <p className="text-slate-400 text-xs font-mono">
                   Modelo: {resultadoIA.model}
                 </p>
-                <p className="text-green-300 text-sm whitespace-pre-wrap leading-relaxed">
-                  {resultadoIA.content}
-                </p>
+                {recomendacion && (
+                  <div>
+                    <p className="text-slate-400 text-xs uppercase font-semibold mb-1">
+                      Recomendacion
+                    </p>
+                    <p className="text-green-300 text-sm leading-relaxed">
+                      {recomendacion}
+                    </p>
+                  </div>
+                )}
+                {factoresClave.length > 0 && (
+                  <div>
+                    <p className="text-slate-400 text-xs uppercase font-semibold mb-2">
+                      Factores clave
+                    </p>
+                    <ul className="text-slate-300 text-sm space-y-1 list-disc list-inside">
+                      {factoresClave.map((factor, index) => (
+                        <li key={index}>{factor}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {!analisisIA && (
+                  <p className="text-green-300 text-sm whitespace-pre-wrap leading-relaxed">
+                    {resultadoIA.content}
+                  </p>
+                )}
               </div>
             )}
           </div>

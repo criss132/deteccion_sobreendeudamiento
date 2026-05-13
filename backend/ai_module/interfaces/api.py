@@ -33,7 +33,7 @@ def analyze(payload: AnalyzePayload) -> AnalyzeResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except APIStatusError as exc:
-        raise HTTPException(status_code=502, detail=exc.message) from exc
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
     except APIConnectionError as exc:
         raise HTTPException(
             status_code=502,

@@ -10,7 +10,6 @@ def get_all_clientes():
                 SELECT idcliente, nombre, iddocumento, ingresos_m,
                        tipo_empleado, score_credito, fecha_registro, activo
                 FROM cliente
-                WHERE activo = TRUE
                 ORDER BY idcliente DESC
             """)
             return cur.fetchall()
@@ -34,11 +33,10 @@ def create_cliente(nombre, iddocumento, ingresos_m, tipo_empleado, score_credito
             cur.execute("""
                 INSERT INTO cliente (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito)
                 VALUES (%s, %s, %s, %s, %s)
-                RETURNING idcliente, nombre, iddocumento, ingresos_m,
-                          tipo_empleado, score_credito, fecha_registro, activo
             """, (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito))
+            idcliente = cur.lastrowid
             conn.commit()
-            return cur.fetchone()
+            return get_cliente_by_id(idcliente)
 
 
 def update_cliente(idcliente, nombre, ingresos_m, score_credito=None):
@@ -48,11 +46,10 @@ def update_cliente(idcliente, nombre, ingresos_m, score_credito=None):
                 UPDATE cliente
                 SET nombre = %s, ingresos_m = %s, score_credito = %s
                 WHERE idcliente = %s AND activo = TRUE
-                RETURNING idcliente, nombre, iddocumento, ingresos_m,
-                          tipo_empleado, score_credito, fecha_registro, activo
             """, (nombre, ingresos_m, score_credito, idcliente))
+            updated = cur.rowcount > 0
             conn.commit()
-            return cur.fetchone()
+            return get_cliente_by_id(idcliente) if updated else None
 
 
 def delete_cliente(idcliente: int):
@@ -61,7 +58,7 @@ def delete_cliente(idcliente: int):
             cur.execute("""
                 UPDATE cliente SET activo = FALSE
                 WHERE idcliente = %s AND activo = TRUE
-                RETURNING idcliente
             """, (idcliente,))
+            deleted = cur.rowcount > 0
             conn.commit()
-            return cur.fetchone()
+            return {"idcliente": idcliente} if deleted else None

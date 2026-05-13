@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, Calendar, Clock, History, Trash2, LayoutDashboard, Plus } from 'lucide-react';
+import { analizarConIA } from '../api';
 
-function RegistroPagos({ historialPagos, setHistorialPagos }) {
+function RegistroPagos({
+  datosCliente,
+  listaCreditos,
+  historialPagos,
+  setHistorialPagos,
+  setResultadoIA,
+  setErrorIA,
+}) {
   const navigate = useNavigate();
-  
+  const [cargandoIA, setCargandoIA] = useState(false);
+  const [errorLocal, setErrorLocal] = useState(null);
   const [pagoActual, setPagoActual] = useState({
-    fechaPago: '', montoPagado: '', retrasoDias: '0', estadoPago: 'completado'
+    fechaPago: '', montoPagado: '', retrasoDias: '0', estadoPago: 'a_tiempo'
   });
 
   const manejarCambio = (e) => {
@@ -20,7 +29,7 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
     e.preventDefault();
     setHistorialPagos([...historialPagos, pagoActual]);
     setPagoActual({
-      fechaPago: '', montoPagado: '', retrasoDias: '0', estadoPago: 'completado'
+      fechaPago: '', montoPagado: '', retrasoDias: '0', estadoPago: 'a_tiempo'
     });
   };
 
@@ -29,10 +38,29 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
     setHistorialPagos(nuevaLista);
   };
 
+  const finalizarYEvaluar = async () => {
+    setCargandoIA(true);
+    setErrorLocal(null);
+    setErrorIA(null);
+
+    try {
+      const resultado = await analizarConIA(
+        datosCliente,
+        listaCreditos,
+        historialPagos,
+      );
+      setResultadoIA(resultado);
+      navigate('/dashboard');
+    } catch (e) {
+      setErrorLocal(e.message);
+      setErrorIA(e.message);
+    } finally {
+      setCargandoIA(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      
-      {/* TARJETA DEL FORMULARIO DE PAGO */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 border-b border-slate-200 p-6 flex items-center gap-4">
           <div className="bg-cyan-100 p-3 rounded-lg">
@@ -40,7 +68,7 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-800">Registrar Comportamiento de Pago</h2>
-            <p className="text-sm text-slate-500">Ingrese los últimos pagos realizados por el cliente.</p>
+            <p className="text-sm text-slate-500">Ingrese los ultimos pagos realizados por el cliente.</p>
           </div>
         </div>
 
@@ -50,26 +78,26 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
               <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <Calendar className="w-4 h-4" /> Fecha de Pago
               </label>
-              <input 
-                type="date" 
-                name="fechaPago" 
-                value={pagoActual.fechaPago} 
-                onChange={manejarCambio} 
-                required 
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+              <input
+                type="date"
+                name="fechaPago"
+                value={pagoActual.fechaPago}
+                onChange={manejarCambio}
+                required
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Monto Pagado ($)</label>
-              <input 
-                type="number" 
-                name="montoPagado" 
-                value={pagoActual.montoPagado} 
-                onChange={manejarCambio} 
-                required 
+              <input
+                type="number"
+                name="montoPagado"
+                value={pagoActual.montoPagado}
+                onChange={manejarCambio}
+                required
                 placeholder="0.00"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -77,30 +105,31 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                <Clock className="w-4 h-4" /> Días de Retraso
+                <Clock className="w-4 h-4" /> Dias de Retraso
               </label>
-              <input 
-                type="number" 
-                name="retrasoDias" 
-                value={pagoActual.retrasoDias} 
-                onChange={manejarCambio} 
-                min="0" 
-                required 
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+              <input
+                type="number"
+                name="retrasoDias"
+                value={pagoActual.retrasoDias}
+                onChange={manejarCambio}
+                min="0"
+                required
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Estado del Pago</label>
-              <select 
-                name="estadoPago" 
-                value={pagoActual.estadoPago} 
-                onChange={manejarCambio} 
+              <select
+                name="estadoPago"
+                value={pagoActual.estadoPago}
+                onChange={manejarCambio}
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="completado">Completado / Al día</option>
-                <option value="parcial">Pago Parcial</option>
-                <option value="rechazado">No realizado / Rechazado</option>
+                <option value="a_tiempo">A tiempo</option>
+                <option value="retraso_leve">Retraso leve</option>
+                <option value="retraso_moderado">Retraso moderado</option>
+                <option value="retraso_grave">Retraso grave</option>
               </select>
             </div>
           </div>
@@ -111,7 +140,6 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
         </form>
       </div>
 
-      {/* TABLA DE HISTORIAL DE PAGOS */}
       {historialPagos.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
@@ -120,7 +148,7 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
               Historial Reciente
             </h3>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -129,7 +157,7 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
                   <th className="px-6 py-4 font-semibold">Monto</th>
                   <th className="px-6 py-4 font-semibold">Retraso</th>
                   <th className="px-6 py-4 font-semibold">Estado</th>
-                  <th className="px-6 py-4 font-semibold text-center">Acción</th>
+                  <th className="px-6 py-4 font-semibold text-center">Accion</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -139,11 +167,11 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
                     <td className="px-6 py-4 text-slate-600">${parseFloat(pago.montoPagado).toLocaleString()}</td>
                     <td className="px-6 py-4">
                       <span className={`font-medium ${parseInt(pago.retrasoDias) > 0 ? 'text-orange-600' : 'text-slate-500'}`}>
-                        {pago.retrasoDias} días
+                        {pago.retrasoDias} dias
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${pago.estadoPago === 'completado' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${pago.estadoPago === 'a_tiempo' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
                         {pago.estadoPago.toUpperCase()}
                       </span>
                     </td>
@@ -159,13 +187,19 @@ function RegistroPagos({ historialPagos, setHistorialPagos }) {
           </div>
 
           <div className="p-8 bg-slate-900 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-slate-400 text-sm italic">Verifique que todos los datos sean correctos antes de proceder al análisis de IA.</p>
-            <button 
-              onClick={() => navigate('/dashboard')} 
-              className="w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white px-10 py-3 rounded-lg font-bold shadow-lg flex items-center justify-center gap-3 transition-all hover:scale-105"
+            <div>
+              <p className="text-slate-400 text-sm italic">Verifique que todos los datos sean correctos antes de proceder al analisis de IA.</p>
+              {errorLocal && (
+                <p className="text-red-300 text-sm mt-2">{errorLocal}</p>
+              )}
+            </div>
+            <button
+              onClick={finalizarYEvaluar}
+              disabled={cargandoIA}
+              className="w-full md:w-auto bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-10 py-3 rounded-lg font-bold shadow-lg flex items-center justify-center gap-3 transition-all hover:scale-105"
             >
               <LayoutDashboard className="w-5 h-5" />
-              Finalizar y Evaluar Riesgo
+              {cargandoIA ? 'Evaluando...' : 'Finalizar y Evaluar Riesgo'}
             </button>
           </div>
         </div>

@@ -1,0 +1,300 @@
+-- ============================================================
+-- SCRIPT 1 DE 2: Crear base de datos y estructura
+-- CréditoSeguro Digital S.A.S.
+-- Ejecutar conectado a la BD "postgres" (base por defecto)
+-- ============================================================
+
+-- 1. Crear la base de datos
+CREATE DATABASE creditoseguro
+    WITH
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'es_CO.UTF-8'
+    LC_CTYPE = 'es_CO.UTF-8'
+    TEMPLATE = template0;
+
+
+
+-- Extensión para funciones criptográficas (opcional)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================================
+-- ENUMS
+-- ============================================================
+
+CREATE TYPE tipo_empleado AS ENUM (
+    'dependiente',
+    'independiente',
+    'pensionado',
+    'desempleado'
+);
+
+CREATE TYPE estado_credito AS ENUM (
+    'activo',
+    'pagado',
+    'en_mora',
+    'reestructurado',
+    'castigado'
+);
+
+CREATE TYPE estado_pago AS ENUM (
+    'a_tiempo',
+    'retraso_leve',
+    'retraso_moderado',
+    'retraso_grave'
+);
+
+CREATE TYPE nivel_riesgo AS ENUM (
+    'bajo',
+    'medio',
+    'alto',
+    'critico'
+);
+
+CREATE TYPE estado_evaluacion AS ENUM (
+    'pendiente',
+    'en_proceso',
+    'completada',
+    'fallida'
+);
+
+CREATE TYPE tipo_accion AS ENUM (
+    'reduccion_cupo',
+    'asesoria_financiera',
+    'seguimiento_personalizado',
+    'reestructuracion_deuda',
+    'bloqueo_nuevos_creditos',
+    'educacion_financiera'
+);
+
+-- ============================================================
+-- TABLAS
+-- ============================================================
+
+CREATE TABLE cliente (
+    idcliente       SERIAL          PRIMARY KEY,
+    nombre          VARCHAR(150)    NOT NULL,
+    iddocumento     VARCHAR(20)     NOT NULL UNIQUE,
+    ingresos_m      NUMERIC(15, 2)  NOT NULL CHECK (ingresos_m >= 0),
+    tipo_empleado   tipo_empleado   NOT NULL,
+    score_credito   INTEGER         CHECK (score_credito BETWEEN 0 AND 1000),
+    fecha_registro  TIMESTAMP       NOT NULL DEFAULT NOW(),
+    activo          BOOLEAN         NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE credito (
+    idcredito       SERIAL          PRIMARY KEY,
+    idcliente       INTEGER         NOT NULL REFERENCES cliente(idcliente) ON DELETE RESTRICT,
+    monto           NUMERIC(15, 2)  NOT NULL CHECK (monto > 0),
+    tasa_interes    NUMERIC(6, 4)   NOT NULL CHECK (tasa_interes > 0),
+    plazo_meses     INTEGER         NOT NULL CHECK (plazo_meses > 0),
+    cuota_mensual   NUMERIC(15, 2)  NOT NULL CHECK (cuota_mensual > 0),
+    estado          estado_credito  NOT NULL DEFAULT 'activo',
+    fecha_apertura  DATE            NOT NULL DEFAULT CURRENT_DATE,
+    fecha_cierre    DATE,
+    CONSTRAINT fecha_cierre_valida CHECK (fecha_cierre IS NULL OR fecha_cierre > fecha_apertura)
+);
+
+CREATE TABLE pago (
+    idpago          SERIAL          PRIMARY KEY,
+    idcredito       INTEGER         NOT NULL REFERENCES credito(idcredito) ON DELETE RESTRICT,
+    fecha_pago      DATE            NOT NULL,
+    monto_pagado    NUMERIC(15, 2)  NOT NULL CHECK (monto_pagado >= 0),
+    retraso_dias    INTEGER         NOT NULL DEFAULT 0 CHECK (retraso_dias >= 0),
+    estado_pago     estado_pago     NOT NULL DEFAULT 'a_tiempo',
+    fecha_registro  TIMESTAMP       NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE historial_financiero (
+    idhistorial              SERIAL          PRIMARY KEY,
+    idcliente                INTEGER         NOT NULL UNIQUE REFERENCES cliente(idcliente) ON DELETE CASCADE,
+    deuda_total              NUMERIC(15, 2)  NOT NULL DEFAULT 0 CHECK (deuda_total >= 0),
+    total_creditos           INTEGER         NOT NULL DEFAULT 0 CHECK (total_creditos >= 0),
+    ingresos_declarados      NUMERIC(15, 2)  NOT NULL CHECK (ingresos_declarados >= 0),
+    porcentaje_endeudamiento NUMERIC(6, 2)   GENERATED ALWAYS AS (
+        CASE
+            WHEN ingresos_declarados = 0 THEN NULL
+            ELSE ROUND((deuda_total / ingresos_declarados) * 100, 2)
+        END
+    ) STORED,
+    reestructuraciones       INTEGER         NOT NULL DEFAULT 0,
+    ultima_actualizacion     TIMESTAMP       NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE modelo_ai (
+    idmodelo        SERIAL          PRIMARY KEY,
+    modelo          VARCHAR(100)    NOT NULL,
+    version         VARCHAR(20)     NOT NULL,
+    umbral_riesgo   NUMERIC(5, 4)   NOT NULL CHECK (umbral_riesgo BETWEEN 0 AND 1),
+    descripcion     TEXT,
+    activo          BOOLEAN         NOT NULL DEFAULT FALSE,
+    fecha_creacion  TIMESTAMP       NOT NULL DEFAULT NOW(),
+    metricas        JSONB
+);
+
+-- Solo un modelo puede estar activo a la vez
+CREATE UNIQUE INDEX idx_un_modelo_activo ON modelo_ai (activo) WHERE activo = TRUE;
+
+CREATE TABLE detector_sobreendeudamiento (
+    iddetector          SERIAL              PRIMARY KEY,
+    idcliente           INTEGER             NOT NULL REFERENCES cliente(idcliente) ON DELETE RESTRICT,
+    idmodelo            INTEGER             NOT NULL REFERENCES modelo_ai(idmodelo) ON DELETE RESTRICT,
+    nivel_riesgo        nivel_riesgo        NOT NULL,
+    probabilidad        NUMERIC(5, 4)       NOT NULL CHECK (probabilidad BETWEEN 0 AND 1),
+    estado_evaluacion   estado_evaluacion   NOT NULL DEFAULT 'pendiente',
+    fecha_evaluacion    TIMESTAMP           NOT NULL DEFAULT NOW(),
+    variables_entrada   JSONB,
+    resultado_detalle   TEXT
+);
+
+CREATE TABLE alerta_riesgo (
+    idalerta            SERIAL          PRIMARY KEY,
+    iddetector          INTEGER         NOT NULL REFERENCES detector_sobreendeudamiento(iddetector) ON DELETE CASCADE,
+    idcliente           INTEGER         NOT NULL REFERENCES cliente(idcliente) ON DELETE RESTRICT,
+    nivel_riesgo        nivel_riesgo    NOT NULL,
+    mensaje_alerta      TEXT            NOT NULL,
+    fecha_generacion    TIMESTAMP       NOT NULL DEFAULT NOW(),
+    enviada             BOOLEAN         NOT NULL DEFAULT FALSE,
+    fecha_envio         TIMESTAMP,
+    leida               BOOLEAN         NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE recomendacion_financiera (
+    idrecomendacion     SERIAL          PRIMARY KEY,
+    iddetector          INTEGER         NOT NULL REFERENCES detector_sobreendeudamiento(iddetector) ON DELETE CASCADE,
+    idcliente           INTEGER         NOT NULL REFERENCES cliente(idcliente) ON DELETE RESTRICT,
+    tipo_accion         tipo_accion     NOT NULL,
+    mensaje             TEXT            NOT NULL,
+    fecha_generacion    TIMESTAMP       NOT NULL DEFAULT NOW(),
+    enviada             BOOLEAN         NOT NULL DEFAULT FALSE,
+    fecha_envio         TIMESTAMP,
+    aplicada            BOOLEAN         NOT NULL DEFAULT FALSE,
+    fecha_aplicacion    TIMESTAMP
+);
+
+-- ============================================================
+-- ÍNDICES
+-- ============================================================
+
+CREATE INDEX idx_credito_idcliente       ON credito(idcliente);
+CREATE INDEX idx_pago_idcredito          ON pago(idcredito);
+CREATE INDEX idx_detector_idcliente      ON detector_sobreendeudamiento(idcliente);
+CREATE INDEX idx_detector_nivel_riesgo   ON detector_sobreendeudamiento(nivel_riesgo);
+CREATE INDEX idx_alerta_idcliente        ON alerta_riesgo(idcliente);
+CREATE INDEX idx_alerta_no_enviada       ON alerta_riesgo(enviada) WHERE enviada = FALSE;
+CREATE INDEX idx_recomendacion_idcliente ON recomendacion_financiera(idcliente);
+
+-- ============================================================
+-- FUNCIONES
+-- ============================================================
+
+-- Calcula cuota mensual con amortización francesa
+CREATE OR REPLACE FUNCTION calcular_cuota_mensual(
+    monto       NUMERIC,
+    tasa_anual  NUMERIC,
+    plazo_meses INTEGER
+)
+RETURNS NUMERIC AS $$
+DECLARE
+    tasa_mensual NUMERIC;
+BEGIN
+    tasa_mensual := tasa_anual / 12;
+    IF tasa_mensual = 0 THEN
+        RETURN ROUND(monto / plazo_meses, 2);
+    END IF;
+    RETURN ROUND(
+        monto * (tasa_mensual * POWER(1 + tasa_mensual, plazo_meses))
+              / (POWER(1 + tasa_mensual, plazo_meses) - 1),
+        2
+    );
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Recalcula deuda total y créditos activos del cliente
+CREATE OR REPLACE FUNCTION actualizar_historial_financiero(p_idcliente INTEGER)
+RETURNS VOID AS $$
+DECLARE
+    v_deuda_total        NUMERIC;
+    v_total_creditos     INTEGER;
+    v_reestructuraciones INTEGER;
+BEGIN
+    SELECT COALESCE(SUM(monto), 0), COUNT(*)
+    INTO v_deuda_total, v_total_creditos
+    FROM credito
+    WHERE idcliente = p_idcliente AND estado = 'activo';
+
+    SELECT COUNT(*)
+    INTO v_reestructuraciones
+    FROM credito
+    WHERE idcliente = p_idcliente AND estado = 'reestructurado';
+
+    UPDATE historial_financiero
+    SET
+        deuda_total          = v_deuda_total,
+        total_creditos       = v_total_creditos,
+        reestructuraciones   = v_reestructuraciones,
+        ultima_actualizacion = NOW()
+    WHERE idcliente = p_idcliente;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- TRIGGERS
+-- ============================================================
+
+-- Al insertar un cliente, crea su historial automáticamente
+CREATE OR REPLACE FUNCTION trg_crear_historial()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO historial_financiero (idcliente, ingresos_declarados)
+    VALUES (NEW.idcliente, NEW.ingresos_m);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER crear_historial_on_cliente
+AFTER INSERT ON cliente
+FOR EACH ROW EXECUTE FUNCTION trg_crear_historial();
+
+-- Al insertar/actualizar un crédito, sincroniza el historial
+CREATE OR REPLACE FUNCTION trg_sync_historial()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM actualizar_historial_financiero(NEW.idcliente);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER sync_historial_on_credito
+AFTER INSERT OR UPDATE ON credito
+FOR EACH ROW EXECUTE FUNCTION trg_sync_historial();
+
+-- ============================================================
+-- VISTA: dashboard para analistas de riesgo
+-- ============================================================
+
+CREATE VIEW v_dashboard_riesgo AS
+SELECT
+    c.idcliente,
+    c.nombre,
+    c.iddocumento,
+    c.score_credito,
+    c.tipo_empleado,
+    hf.deuda_total,
+    hf.ingresos_declarados,
+    hf.porcentaje_endeudamiento,
+    hf.total_creditos,
+    hf.reestructuraciones,
+    d.nivel_riesgo,
+    d.probabilidad,
+    d.fecha_evaluacion,
+    d.estado_evaluacion
+FROM cliente c
+JOIN historial_financiero hf ON hf.idcliente = c.idcliente
+LEFT JOIN LATERAL (
+    SELECT nivel_riesgo, probabilidad, fecha_evaluacion, estado_evaluacion
+    FROM detector_sobreendeudamiento
+    WHERE idcliente = c.idcliente
+    ORDER BY fecha_evaluacion DESC
+    LIMIT 1
+) d ON TRUE
+WHERE c.activo = TRUE;

@@ -15,7 +15,7 @@ class PagoCreate(BaseModel):
     fecha_pago: str          # formato YYYY-MM-DD
     monto_pagado: float
     retraso_dias: Optional[int] = 0
-    estado_pago: Optional[str] = "completado"  # completado | parcial | rechazado
+    estado_pago: Optional[str] = "a_tiempo"  # a_tiempo | retraso_leve | retraso_moderado | retraso_grave
 
 
 @router.get("/credito/{idcredito}")

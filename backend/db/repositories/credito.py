@@ -47,11 +47,10 @@ def create_credito(idcliente, monto, tasa_interes, plazo_meses, estado="activo")
             cur.execute("""
                 INSERT INTO credito (idcliente, monto, tasa_interes, plazo_meses, cuota_mensual, estado)
                 VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING idcredito, idcliente, monto, tasa_interes, plazo_meses,
-                          cuota_mensual, estado, fecha_apertura, fecha_cierre
             """, (idcliente, monto, tasa_interes, plazo_meses, cuota_mensual, estado))
+            idcredito = cur.lastrowid
             conn.commit()
-            return cur.fetchone()
+            return get_credito_by_id(idcredito)
 
 
 def update_estado_credito(idcredito: int, estado: str):
@@ -60,8 +59,7 @@ def update_estado_credito(idcredito: int, estado: str):
             cur.execute("""
                 UPDATE credito SET estado = %s
                 WHERE idcredito = %s
-                RETURNING idcredito, idcliente, monto, tasa_interes, plazo_meses,
-                          cuota_mensual, estado, fecha_apertura, fecha_cierre
             """, (estado, idcredito))
+            updated = cur.rowcount > 0
             conn.commit()
-            return cur.fetchone()
+            return get_credito_by_id(idcredito) if updated else None

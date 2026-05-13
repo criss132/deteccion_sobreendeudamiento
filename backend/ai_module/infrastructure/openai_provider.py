@@ -29,7 +29,7 @@ class OpenAIProvider:
         model: str | None = None,
         client: OpenAI | None = None,
     ) -> None:
-        load_dotenv()
+        load_dotenv(override=True)
 
         resolved_api_key = api_key or os.getenv("OPENAI_API_KEY")
         if client is None and not resolved_api_key:
