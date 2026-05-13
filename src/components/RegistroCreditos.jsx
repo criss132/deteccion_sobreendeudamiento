@@ -1,8 +1,19 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, Plus, Trash2, ChevronRight } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  ChevronRight,
+  CreditCard,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
+import { listarClientes } from "../api";
 
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 function calcularCuotaMensual(monto, tasaAnualPorcentaje, plazoMeses) {
   const principal = parseFloat(monto);
@@ -17,10 +28,30 @@ function calcularCuotaMensual(monto, tasaAnualPorcentaje, plazoMeses) {
   return principal * tasaMensual / (1 - (1 + tasaMensual) ** -plazo);
 }
 
-function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
+function normalizarCliente(cliente) {
+  return {
+    idcliente: cliente.idcliente,
+    nombre: cliente.nombre ?? "",
+    iddocumento: cliente.iddocumento ?? "",
+    ingresosM: cliente.ingresos_m ?? "",
+    tipoEmpleado: cliente.tipo_empleado ?? "",
+  };
+}
+
+function RegistroCreditos({
+  datosCliente,
+  setDatosCliente,
+  listaCreditos,
+  setListaCreditos,
+}) {
   const navigate = useNavigate();
   const [cargando, setCargando] = useState(false);
+  const [cargandoClientes, setCargandoClientes] = useState(true);
   const [error, setError] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [documentoBusqueda, setDocumentoBusqueda] = useState(
+    datosCliente.iddocumento ?? "",
+  );
 
   const [creditoActual, setCreditoActual] = useState({
     monto: "",
@@ -31,6 +62,65 @@ function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
 
   const manejarCambio = (e) => {
     setCreditoActual({ ...creditoActual, [e.target.name]: e.target.value });
+  };
+
+  useEffect(() => {
+    let activo = true;
+
+    listarClientes()
+      .then((data) => {
+        if (activo) setClientes(data);
+      })
+      .catch((e) => {
+        if (activo) setError(e.message);
+      })
+      .finally(() => {
+        if (activo) setCargandoClientes(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const clienteSeleccionado = datosCliente.idcliente
+    ? clientes.find((cliente) => cliente.idcliente === datosCliente.idcliente)
+    : null;
+
+  const sugerenciasClientes = useMemo(() => {
+    const termino = documentoBusqueda.trim().toLowerCase();
+    if (termino.length < 2) return [];
+
+    return clientes
+      .filter((cliente) => {
+        const documento = String(cliente.iddocumento ?? "").toLowerCase();
+        const nombre = String(cliente.nombre ?? "").toLowerCase();
+        return documento.includes(termino) || nombre.includes(termino);
+      })
+      .slice(0, 5);
+  }, [clientes, documentoBusqueda]);
+
+  const seleccionarCliente = (cliente) => {
+    setDatosCliente(normalizarCliente(cliente));
+    setDocumentoBusqueda(cliente.iddocumento ?? "");
+    setListaCreditos([]);
+    setError(null);
+  };
+
+  const cambiarDocumento = (e) => {
+    const valor = e.target.value;
+    setDocumentoBusqueda(valor);
+
+    if (datosCliente.idcliente && valor !== datosCliente.iddocumento) {
+      setDatosCliente({
+        idcliente: null,
+        nombre: "",
+        iddocumento: valor,
+        ingresosM: "",
+        tipoEmpleado: "",
+      });
+      setListaCreditos([]);
+    }
   };
 
   const cuotaMensualEstimada = calcularCuotaMensual(
@@ -44,7 +134,7 @@ function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
 
     // Validar que el cliente ya fue guardado
     if (!datosCliente.idcliente) {
-      setError("Primero debes registrar y guardar el cliente.");
+      setError("Selecciona un cliente por numero de documento antes de guardar la obligacion.");
       return;
     }
 
@@ -121,6 +211,84 @@ function RegistroCreditos({ datosCliente, listaCreditos, setListaCreditos }) {
         </div>
 
         <form onSubmit={agregarCredito} className="p-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2 space-y-2 relative">
+              <label className="text-sm font-semibold text-slate-700">
+                Documento del Cliente
+              </label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={documentoBusqueda}
+                  onChange={cambiarDocumento}
+                  required
+                  placeholder="Digite documento o nombre"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {documentoBusqueda.trim().length >= 2 &&
+                !datosCliente.idcliente &&
+                sugerenciasClientes.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                    {sugerenciasClientes.map((cliente) => (
+                      <button
+                        key={cliente.idcliente}
+                        type="button"
+                        onClick={() => seleccionarCliente(cliente)}
+                        className="w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-b-0"
+                      >
+                        <span className="block text-sm font-semibold text-slate-800">
+                          {cliente.nombre}
+                        </span>
+                        <span className="block text-xs text-slate-500">
+                          Documento {cliente.iddocumento} - {cliente.tipo_empleado}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+              {documentoBusqueda.trim().length >= 2 &&
+                !datosCliente.idcliente &&
+                !cargandoClientes &&
+                sugerenciasClientes.length === 0 && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    No se encontraron clientes con ese dato.
+                  </p>
+                )}
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 min-h-[92px]">
+              {cargandoClientes ? (
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Cargando clientes...
+                </div>
+              ) : clienteSeleccionado || datosCliente.idcliente ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4" />
+                    Cliente seleccionado
+                  </p>
+                  <p className="font-bold text-slate-800">
+                    {datosCliente.nombre}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {datosCliente.iddocumento} - {datosCliente.tipoEmpleado}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-500 flex items-start gap-2">
+                  <UserCheck className="w-4 h-4 mt-0.5 text-slate-400" />
+                  Selecciona una coincidencia para asociar la obligacion.
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">

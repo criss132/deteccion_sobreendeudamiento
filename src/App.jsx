@@ -157,6 +157,7 @@ function App() {
                   element={
                     <RegistroCreditos
                       datosCliente={datosCliente}
+                      setDatosCliente={setDatosCliente}
                       listaCreditos={listaCreditos}
                       setListaCreditos={setListaCreditos}
                     />
@@ -167,7 +168,9 @@ function App() {
                   element={
                     <RegistroPagos
                       datosCliente={datosCliente}
+                      setDatosCliente={setDatosCliente}
                       listaCreditos={listaCreditos}
+                      setListaCreditos={setListaCreditos}
                       historialPagos={historialPagos}
                       setHistorialPagos={setHistorialPagos}
                       setResultadoIA={setResultadoIA}

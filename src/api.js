@@ -62,6 +62,16 @@ export async function crearCredito(datos) {
   return res.json();
 }
 
+export async function crearPago(datos) {
+  const res = await fetch(`${BASE}/pagos/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(datos),
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  return res.json();
+}
+
 export async function analizarConIA(
   datosCliente,
   listaCreditos,
