@@ -1,4 +1,4 @@
-"""Repositorio de créditos."""
+"""Repositorio de acceso a datos para la tabla credito."""
 
 from backend.db.connection import get_connection
 
@@ -6,38 +6,50 @@ from backend.db.connection import get_connection
 def get_creditos_by_cliente(idcliente: int):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT * FROM credito WHERE idcliente = %s ORDER BY fecha_apertura DESC",
-                (idcliente,)
-            )
+            cur.execute("""
+                SELECT idcredito, idcliente, monto, tasa_interes, plazo_meses,
+                       cuota_mensual, estado, fecha_apertura, fecha_cierre
+                FROM credito
+                WHERE idcliente = %s
+                ORDER BY fecha_apertura DESC
+            """, (idcliente,))
             return cur.fetchall()
 
 
 def get_credito_by_id(idcredito: int):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM credito WHERE idcredito = %s", (idcredito,))
+            cur.execute("""
+                SELECT idcredito, idcliente, monto, tasa_interes, plazo_meses,
+                       cuota_mensual, estado, fecha_apertura, fecha_cierre
+                FROM credito
+                WHERE idcredito = %s
+            """, (idcredito,))
             return cur.fetchone()
 
 
-def create_credito(idcliente: int, monto: float, tasa_interes: float,
-                   plazo_meses: int, estado: str = "activo"):
-    sql = """
-        INSERT INTO credito (idcliente, monto, tasa_interes, plazo_meses, cuota_mensual, estado)
-        VALUES (
-            %s, %s, %s, %s,
-            calcular_cuota_mensual(%s, %s, %s),
-            %s
-        )
-        RETURNING *
+def create_credito(idcliente, monto, tasa_interes, plazo_meses, estado="activo"):
     """
+    Calcula cuota_mensual con la fórmula estándar de amortización:
+    C = P * r / (1 - (1+r)^-n)
+    donde r = tasa_interes / 12
+    """
+    r = tasa_interes / 12
+    if r == 0:
+        cuota_mensual = monto / plazo_meses
+    else:
+        cuota_mensual = monto * r / (1 - (1 + r) ** -plazo_meses)
+
+    cuota_mensual = round(cuota_mensual, 2)
+
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (
-                idcliente, monto, tasa_interes, plazo_meses,
-                monto, tasa_interes, plazo_meses,
-                estado
-            ))
+            cur.execute("""
+                INSERT INTO credito (idcliente, monto, tasa_interes, plazo_meses, cuota_mensual, estado)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING idcredito, idcliente, monto, tasa_interes, plazo_meses,
+                          cuota_mensual, estado, fecha_apertura, fecha_cierre
+            """, (idcliente, monto, tasa_interes, plazo_meses, cuota_mensual, estado))
             conn.commit()
             return cur.fetchone()
 
@@ -45,9 +57,11 @@ def create_credito(idcliente: int, monto: float, tasa_interes: float,
 def update_estado_credito(idcredito: int, estado: str):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE credito SET estado = %s WHERE idcredito = %s RETURNING *",
-                (estado, idcredito)
-            )
+            cur.execute("""
+                UPDATE credito SET estado = %s
+                WHERE idcredito = %s
+                RETURNING idcredito, idcliente, monto, tasa_interes, plazo_meses,
+                          cuota_mensual, estado, fecha_apertura, fecha_cierre
+            """, (estado, idcredito))
             conn.commit()
             return cur.fetchone()

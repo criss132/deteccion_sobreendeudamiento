@@ -1,4 +1,4 @@
-"""Repositorio de clientes."""
+"""Repositorio de acceso a datos para la tabla cliente."""
 
 from backend.db.connection import get_connection
 
@@ -6,41 +6,51 @@ from backend.db.connection import get_connection
 def get_all_clientes():
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM cliente WHERE activo = TRUE ORDER BY idcliente")
+            cur.execute("""
+                SELECT idcliente, nombre, iddocumento, ingresos_m,
+                       tipo_empleado, score_credito, fecha_registro, activo
+                FROM cliente
+                WHERE activo = TRUE
+                ORDER BY idcliente DESC
+            """)
             return cur.fetchall()
 
 
 def get_cliente_by_id(idcliente: int):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM cliente WHERE idcliente = %s", (idcliente,))
+            cur.execute("""
+                SELECT idcliente, nombre, iddocumento, ingresos_m,
+                       tipo_empleado, score_credito, fecha_registro, activo
+                FROM cliente
+                WHERE idcliente = %s AND activo = TRUE
+            """, (idcliente,))
             return cur.fetchone()
 
 
-def create_cliente(nombre: str, iddocumento: str, ingresos_m: float,
-                   tipo_empleado: str, score_credito: int):
-    sql = """
-        INSERT INTO cliente (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING *
-    """
+def create_cliente(nombre, iddocumento, ingresos_m, tipo_empleado, score_credito=None):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito))
+            cur.execute("""
+                INSERT INTO cliente (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING idcliente, nombre, iddocumento, ingresos_m,
+                          tipo_empleado, score_credito, fecha_registro, activo
+            """, (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito))
             conn.commit()
             return cur.fetchone()
 
 
-def update_cliente(idcliente: int, nombre: str, ingresos_m: float, score_credito: int):
-    sql = """
-        UPDATE cliente
-        SET nombre = %s, ingresos_m = %s, score_credito = %s
-        WHERE idcliente = %s
-        RETURNING *
-    """
+def update_cliente(idcliente, nombre, ingresos_m, score_credito=None):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (nombre, ingresos_m, score_credito, idcliente))
+            cur.execute("""
+                UPDATE cliente
+                SET nombre = %s, ingresos_m = %s, score_credito = %s
+                WHERE idcliente = %s AND activo = TRUE
+                RETURNING idcliente, nombre, iddocumento, ingresos_m,
+                          tipo_empleado, score_credito, fecha_registro, activo
+            """, (nombre, ingresos_m, score_credito, idcliente))
             conn.commit()
             return cur.fetchone()
 
@@ -48,9 +58,10 @@ def update_cliente(idcliente: int, nombre: str, ingresos_m: float, score_credito
 def delete_cliente(idcliente: int):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE cliente SET activo = FALSE WHERE idcliente = %s RETURNING idcliente",
-                (idcliente,)
-            )
+            cur.execute("""
+                UPDATE cliente SET activo = FALSE
+                WHERE idcliente = %s AND activo = TRUE
+                RETURNING idcliente
+            """, (idcliente,))
             conn.commit()
             return cur.fetchone()
