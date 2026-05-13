@@ -1,0 +1,118 @@
+
+
+BEGIN;
+
+
+-- Modelo AIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIiii
+
+
+INSERT INTO modelo_ai (modelo, version, umbral_riesgo, descripcion, activo, metricas)
+VALUES (
+    'RandomForest', '1.0.0', 0.6500,
+    'Clasificación binaria entrenado con historial de 24 meses',
+    TRUE,
+    '{"precision": 0.82, "recall": 0.78, "auc": 0.85, "f1": 0.80}'::JSONB
+);
+
+
+-- Clientes
+
+
+INSERT INTO cliente (nombre, iddocumento, ingresos_m, tipo_empleado, score_credito)
+VALUES
+    ('Ana Torres Pérez',    '1045678901', 2500000, 'dependiente',   720),
+    ('Carlos Ruiz López',   '1034567890', 1800000, 'independiente', 580),
+    ('María Gómez Díaz',    '1056789012', 3200000, 'dependiente',   810),
+    ('Luis Martínez Soto',  '1023456789', 1200000, 'independiente', 430),
+    ('Paola Herrera Castro', '1067890123', 2100000, 'pensionado',   670);
+
+
+-- Créditos prestaados
+
+
+INSERT INTO credito (idcliente, monto, tasa_interes, plazo_meses, cuota_mensual, estado, fecha_apertura)
+VALUES
+    
+    (1, 5000000,  0.0200, 24, calcular_cuota_mensual(5000000,  0.24,  24), 'activo',        CURRENT_DATE - INTERVAL '2 months'),
+    -- Carlos: crédito activo + uno reestructurado (señal de alerta)
+    (2, 3000000,  0.0250, 12, calcular_cuota_mensual(3000000,  0.30,  12), 'activo',        CURRENT_DATE - INTERVAL '5 months'),
+    (2, 1500000,  0.0220, 6,  calcular_cuota_mensual(1500000,  0.264,  6), 'reestructurado', CURRENT_DATE - INTERVAL '8 months'),
+    -- María: crédito grande, buen perfil
+    (3, 10000000, 0.0180, 36, calcular_cuota_mensual(10000000, 0.216, 36), 'activo',        CURRENT_DATE - INTERVAL '1 month'),
+    -- Luis: en mora
+    (4, 800000,   0.0280,  6, calcular_cuota_mensual(800000,   0.336,  6), 'en_mora',       CURRENT_DATE - INTERVAL '3 months'),
+    -- Paola: dos créditos activos simultáneos
+    (5, 2000000,  0.0210, 18, calcular_cuota_mensual(2000000,  0.252, 18), 'activo',        CURRENT_DATE - INTERVAL '6 months'),
+    (5, 1000000,  0.0230, 12, calcular_cuota_mensual(1000000,  0.276, 12), 'activo',        CURRENT_DATE - INTERVAL '2 months');
+
+
+-- Pagos
+
+
+INSERT INTO pago (idcredito, fecha_pago, monto_pagado, retraso_dias, estado_pago)
+VALUES
+    -- Ana: pagos puntuales
+    (1, CURRENT_DATE - INTERVAL '60 days', 270000, 0,  'a_tiempo'),
+    (1, CURRENT_DATE - INTERVAL '30 days', 270000, 0,  'a_tiempo'),
+    (1, CURRENT_DATE,                       270000, 0,  'a_tiempo'),
+    -- Carlos: retrasos leves recurrentes
+    (2, CURRENT_DATE - INTERVAL '90 days', 290000, 8,  'retraso_leve'),
+    (2, CURRENT_DATE - INTERVAL '60 days', 290000, 15, 'retraso_leve'),
+    (2, CURRENT_DATE - INTERVAL '30 days', 290000, 22, 'retraso_leve'),
+    -- Luis: retraso grave
+    (5, CURRENT_DATE - INTERVAL '60 days', 160000, 45, 'retraso_grave'),
+    -- Paola: un retraso moderado
+    (6, CURRENT_DATE - INTERVAL '30 days', 135000, 35, 'retraso_moderado'),
+    (7, CURRENT_DATE,                       100000, 0,  'a_tiempo');
+
+
+-- Evaluaciones del detector de sobreendeudamiento
+
+
+INSERT INTO detector_sobreendeudamiento
+    (idcliente, idmodelo, nivel_riesgo, probabilidad, estado_evaluacion, variables_entrada)
+VALUES
+    -- Ana: bajo riesgo
+    (1, 1, 'bajo',   0.1200, 'completada',
+     '{"deuda_ingreso": 0.32, "retrasos_ultimos_6m": 0, "reestructuraciones": 0}'::JSONB),
+    -- Carlos: riesgo alto por retrasos y reestructuración
+    (2, 1, 'alto',   0.7800, 'completada',
+     '{"deuda_ingreso": 0.75, "retrasos_ultimos_6m": 3, "reestructuraciones": 1}'::JSONB),
+    -- María: bajo riesgo
+    (3, 1, 'bajo',   0.0900, 'completada',
+     '{"deuda_ingreso": 0.28, "retrasos_ultimos_6m": 0, "reestructuraciones": 0}'::JSONB),
+    -- Luis: riesgo crítico
+    (4, 1, 'critico', 0.9400, 'completada',
+     '{"deuda_ingreso": 0.95, "retrasos_ultimos_6m": 1, "reestructuraciones": 0}'::JSONB),
+    -- Paola: riesgo medio por múltiples créditos
+    (5, 1, 'medio',  0.5500, 'completada',
+     '{"deuda_ingreso": 0.60, "retrasos_ultimos_6m": 1, "reestructuraciones": 0}'::JSONB);
+
+
+-- Alertas de riesgo para nivel alto y crítico
+
+
+INSERT INTO alerta_riesgo (iddetector, idcliente, nivel_riesgo, mensaje_alerta)
+VALUES
+    (2, 2, 'alto',
+     'Cliente con 3 retrasos en últimos 6 meses y 1 reestructuración. Probabilidad de deterioro: 78%. Se recomienda intervención preventiva.'),
+    (4, 4, 'critico',
+     'Cliente en mora activa con relación deuda-ingreso superior al 90%. Riesgo crítico de sobreendeudamiento. Acción inmediata requerida.');
+
+-- Recomendaciones financieras
+
+
+INSERT INTO recomendacion_financiera (iddetector, idcliente, tipo_accion, mensaje)
+VALUES
+    (2, 2, 'asesoria_financiera',
+     'Programar sesión de asesoría financiera. El cliente muestra patrón de retrasos progresivos que puede derivar en mora estructural.'),
+    (2, 2, 'seguimiento_personalizado',
+     'Activar monitoreo mensual de comportamiento de pago durante los próximos 3 meses.'),
+    (4, 4, 'bloqueo_nuevos_creditos',
+     'Bloquear solicitudes de nuevos créditos hasta regularización de obligación en mora.'),
+    (4, 4, 'reduccion_cupo',
+     'Revisar y reducir cupo disponible en líneas de crédito rotativas si aplica.'),
+    (5, 5, 'educacion_financiera',
+     'Enviar módulo de educación financiera sobre manejo de múltiples obligaciones simultáneas.');
+
+COMMIT;
