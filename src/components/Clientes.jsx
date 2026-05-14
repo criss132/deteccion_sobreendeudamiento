@@ -9,10 +9,13 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  Trash2,
   Users,
 } from "lucide-react";
 import {
+  actualizarEstadoCredito,
   analizarConIA,
+  eliminarCredito,
   listarClientes,
   listarCreditosCliente,
   listarPagosCliente,
@@ -60,6 +63,8 @@ function Clientes({
   const [busqueda, setBusqueda] = useState("");
   const [cargando, setCargando] = useState(true);
   const [cargandoAccion, setCargandoAccion] = useState(null);
+  const [creditoEditando, setCreditoEditando] = useState(null);
+  const [creditoBorrando, setCreditoBorrando] = useState(null);
   const [error, setError] = useState(null);
 
   const cargarClientes = async () => {
@@ -187,6 +192,66 @@ function Clientes({
       setError(e.message);
     } finally {
       setCargandoAccion(null);
+    }
+  };
+
+  const cambiarEstadoCredito = async (cliente, credito, estado) => {
+    setCreditoEditando(credito.idcredito);
+    setError(null);
+
+    try {
+      const creditoActualizado = await actualizarEstadoCredito(
+        credito.idcredito,
+        estado,
+      );
+
+      setCreditosPorCliente((actual) => ({
+        ...actual,
+        [cliente.idcliente]: (actual[cliente.idcliente] ?? []).map((item) =>
+          item.idcredito === credito.idcredito ? creditoActualizado : item,
+        ),
+      }));
+      setListaCreditos((actual) =>
+        actual.map((item) =>
+          item.idcredito === credito.idcredito ? creditoActualizado : item,
+        ),
+      );
+      setResultadoIA(null);
+      setErrorIA(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCreditoEditando(null);
+    }
+  };
+
+  const borrarCredito = async (cliente, credito) => {
+    const confirmar = window.confirm(
+      `Deseas borrar el credito #${credito.idcredito}?`,
+    );
+    if (!confirmar) return;
+
+    setCreditoBorrando(credito.idcredito);
+    setError(null);
+
+    try {
+      await eliminarCredito(credito.idcredito);
+
+      setCreditosPorCliente((actual) => ({
+        ...actual,
+        [cliente.idcliente]: (actual[cliente.idcliente] ?? []).filter(
+          (item) => item.idcredito !== credito.idcredito,
+        ),
+      }));
+      setListaCreditos((actual) =>
+        actual.filter((item) => item.idcredito !== credito.idcredito),
+      );
+      setResultadoIA(null);
+      setErrorIA(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCreditoBorrando(null);
     }
   };
 
@@ -444,6 +509,9 @@ function Clientes({
                                       <th className="px-4 py-3 text-left">
                                         Estado
                                       </th>
+                                      <th className="px-4 py-3 text-left">
+                                        Accion
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100">
@@ -461,9 +529,57 @@ function Clientes({
                                           {credito.plazo_meses} meses
                                         </td>
                                         <td className="px-4 py-3">
-                                          <span className="px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-600 uppercase">
-                                            {credito.estado}
-                                          </span>
+                                          <select
+                                            value={credito.estado}
+                                            onChange={(e) =>
+                                              cambiarEstadoCredito(
+                                                cliente,
+                                                credito,
+                                                e.target.value,
+                                              )
+                                            }
+                                            disabled={
+                                              creditoEditando ===
+                                              credito.idcredito
+                                            }
+                                            className="px-2 py-1 rounded border border-slate-300 bg-white text-xs font-bold uppercase text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                                          >
+                                            <option value="activo">
+                                              Activo
+                                            </option>
+                                            <option value="pagado">
+                                              Pagado
+                                            </option>
+                                            <option value="en_mora">
+                                              En mora
+                                            </option>
+                                            <option value="reestructurado">
+                                              Reestructurado
+                                            </option>
+                                            <option value="castigado">
+                                              Castigado
+                                            </option>
+                                          </select>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <button
+                                            onClick={() =>
+                                              borrarCredito(cliente, credito)
+                                            }
+                                            disabled={
+                                              creditoBorrando ===
+                                              credito.idcredito
+                                            }
+                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60"
+                                            title="Borrar credito"
+                                          >
+                                            {creditoBorrando ===
+                                            credito.idcredito ? (
+                                              <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                              <Trash2 className="w-4 h-4" />
+                                            )}
+                                          </button>
                                         </td>
                                       </tr>
                                     ))}

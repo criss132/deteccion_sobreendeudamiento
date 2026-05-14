@@ -1,5 +1,7 @@
 """Repositorio de acceso a datos para la tabla credito."""
 
+from mysql.connector import errors
+
 from backend.db.connection import get_connection
 
 
@@ -63,3 +65,20 @@ def update_estado_credito(idcredito: int, estado: str):
             updated = cur.rowcount > 0
             conn.commit()
             return get_credito_by_id(idcredito) if updated else None
+
+
+def delete_credito(idcredito: int):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute("""
+                    DELETE FROM credito
+                    WHERE idcredito = %s
+                """, (idcredito,))
+            except errors.IntegrityError:
+                conn.rollback()
+                return {"bloqueado": True, "idcredito": idcredito}
+
+            deleted = cur.rowcount > 0
+            conn.commit()
+            return {"idcredito": idcredito} if deleted else None

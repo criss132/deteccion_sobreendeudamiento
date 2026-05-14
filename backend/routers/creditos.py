@@ -47,3 +47,16 @@ def cambiar_estado(idcredito: int, estado: str):
     if not result:
         raise HTTPException(status_code=404, detail="Crédito no encontrado")
     return result
+
+
+@router.delete("/{idcredito}")
+def eliminar_credito(idcredito: int):
+    result = repo.delete_credito(idcredito)
+    if not result:
+        raise HTTPException(status_code=404, detail="Credito no encontrado")
+    if result.get("bloqueado"):
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede borrar este credito porque tiene pagos asociados.",
+        )
+    return {"mensaje": "Credito eliminado correctamente", **result}

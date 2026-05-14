@@ -62,6 +62,23 @@ export async function crearCredito(datos) {
   return res.json();
 }
 
+export async function actualizarEstadoCredito(idcredito, estado) {
+  const params = new URLSearchParams({ estado });
+  const res = await fetch(`${BASE}/creditos/${idcredito}/estado?${params}`, {
+    method: "PATCH",
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  return res.json();
+}
+
+export async function eliminarCredito(idcredito) {
+  const res = await fetch(`${BASE}/creditos/${idcredito}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(await parseApiError(res));
+  return res.json();
+}
+
 export async function crearPago(datos) {
   const res = await fetch(`${BASE}/pagos/`, {
     method: "POST",

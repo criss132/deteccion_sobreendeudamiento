@@ -17,37 +17,66 @@ import RegistroPagos from "./components/RegistroPagos";
 import Dashboard from "./components/Dashboard";
 import Clientes from "./components/Clientes";
 
+const clienteVacio = {
+  idcliente: null,
+  nombre: "",
+  iddocumento: "",
+  ingresosM: "",
+  tipoEmpleado: "",
+};
+
 function App() {
   // --- ESTADO DE AUTENTICACIÓN ---
   const [estaAutenticado, setEstaAutenticado] = useState(false);
 
   // --- MEMORIA CENTRAL DEL SISTEMA ---
-  const [datosCliente, setDatosCliente] = useState({
-    idcliente: null,
-    nombre: "",
-    iddocumento: "",
-    ingresosM: "",
-    tipoEmpleado: "",
-  });
+  const [datosCliente, setDatosCliente] = useState(clienteVacio);
   const [listaCreditos, setListaCreditos] = useState([]);
   const [historialPagos, setHistorialPagos] = useState([]);
   const [resultadoIA, setResultadoIA] = useState(null);
   const [errorIA, setErrorIA] = useState(null);
+  const [resetKeys, setResetKeys] = useState({
+    cliente: 0,
+    creditos: 0,
+    pagos: 0,
+  });
+
+  const limpiarResultado = () => {
+    setResultadoIA(null);
+    setErrorIA(null);
+  };
+
+  const irARegistroCliente = () => {
+    setDatosCliente(clienteVacio);
+    setListaCreditos([]);
+    setHistorialPagos([]);
+    limpiarResultado();
+    setResetKeys((actual) => ({ ...actual, cliente: actual.cliente + 1 }));
+  };
+
+  const irARegistroCreditos = () => {
+    setDatosCliente(clienteVacio);
+    setListaCreditos([]);
+    setHistorialPagos([]);
+    limpiarResultado();
+    setResetKeys((actual) => ({ ...actual, creditos: actual.creditos + 1 }));
+  };
+
+  const irARegistroPagos = () => {
+    setDatosCliente(clienteVacio);
+    setListaCreditos([]);
+    setHistorialPagos([]);
+    limpiarResultado();
+    setResetKeys((actual) => ({ ...actual, pagos: actual.pagos + 1 }));
+  };
 
   const cerrarSesion = () => {
     // Al cerrar sesión, limpiamos la memoria y ocultamos el sistema
     setEstaAutenticado(false);
-    setDatosCliente({
-      idcliente: "",
-      nombre: "",
-      iddocumento: "",
-      ingresosM: "",
-      tipoEmpleado: "",
-    });
+    setDatosCliente(clienteVacio);
     setListaCreditos([]);
     setHistorialPagos([]);
-    setResultadoIA(null);
-    setErrorIA(null);
+    limpiarResultado();
   };
 
   return (
@@ -79,6 +108,7 @@ function App() {
               </Link>
               <Link
                 to="/"
+                onClick={irARegistroCliente}
                 className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors font-medium"
               >
                 <UserPlus className="w-5 h-5 text-slate-400" /> Registro de
@@ -86,6 +116,7 @@ function App() {
               </Link>
               <Link
                 to="/creditos"
+                onClick={irARegistroCreditos}
                 className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors font-medium"
               >
                 <CreditCard className="w-5 h-5 text-slate-400" /> Deudas y
@@ -93,6 +124,7 @@ function App() {
               </Link>
               <Link
                 to="/pagos"
+                onClick={irARegistroPagos}
                 className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors font-medium"
               >
                 <Wallet className="w-5 h-5 text-slate-400" /> Historial de Pagos
@@ -147,6 +179,7 @@ function App() {
                   path="/"
                   element={
                     <FormularioCliente
+                      key={resetKeys.cliente}
                       datosCliente={datosCliente}
                       setDatosCliente={setDatosCliente}
                     />
@@ -156,10 +189,14 @@ function App() {
                   path="/creditos"
                   element={
                     <RegistroCreditos
+                      key={resetKeys.creditos}
                       datosCliente={datosCliente}
                       setDatosCliente={setDatosCliente}
                       listaCreditos={listaCreditos}
                       setListaCreditos={setListaCreditos}
+                      historialPagos={historialPagos}
+                      setResultadoIA={setResultadoIA}
+                      setErrorIA={setErrorIA}
                     />
                   }
                 />
@@ -167,6 +204,7 @@ function App() {
                   path="/pagos"
                   element={
                     <RegistroPagos
+                      key={resetKeys.pagos}
                       datosCliente={datosCliente}
                       setDatosCliente={setDatosCliente}
                       listaCreditos={listaCreditos}

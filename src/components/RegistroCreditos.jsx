@@ -11,7 +11,7 @@ import {
   Trash2,
   UserCheck,
 } from "lucide-react";
-import { listarClientes } from "../api";
+import { analizarConIA, listarClientes, listarCreditosCliente } from "../api";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
@@ -43,6 +43,9 @@ function RegistroCreditos({
   setDatosCliente,
   listaCreditos,
   setListaCreditos,
+  historialPagos,
+  setResultadoIA,
+  setErrorIA,
 }) {
   const navigate = useNavigate();
   const [cargando, setCargando] = useState(false);
@@ -140,6 +143,8 @@ function RegistroCreditos({
 
     setCargando(true);
     setError(null);
+    setResultadoIA(null);
+    setErrorIA(null);
 
     try {
       const res = await fetch(`${BASE}/creditos/`, {
@@ -159,16 +164,28 @@ function RegistroCreditos({
         throw new Error(err.detail ?? "Error al guardar crédito");
       }
 
-      const creditoGuardado = await res.json();
-      setListaCreditos([...listaCreditos, creditoGuardado]);
+      await res.json();
+      const creditosActualizados = await listarCreditosCliente(
+        datosCliente.idcliente,
+      );
+      setListaCreditos(creditosActualizados);
       setCreditoActual({
         monto: "",
         tasainteres: "",
         plazoMeses: "",
         estado: "activo",
       });
+
+      const resultado = await analizarConIA(
+        datosCliente,
+        creditosActualizados,
+        historialPagos,
+      );
+      setResultadoIA(resultado);
+      navigate("/dashboard");
     } catch (e) {
       setError(e.message);
+      setErrorIA(e.message);
     } finally {
       setCargando(false);
     }
@@ -181,17 +198,6 @@ function RegistroCreditos({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Aviso si no hay cliente guardado aún */}
-      {!datosCliente.idcliente && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
-          ⚠️ No hay un cliente guardado en la base de datos. Ve al{" "}
-          <a href="/" className="underline font-semibold">
-            Registro de Cliente
-          </a>{" "}
-          primero.
-        </div>
-      )}
-
       {/* TARJETA DEL FORMULARIO */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 border-b border-slate-200 p-6 flex items-center gap-4">
@@ -388,10 +394,13 @@ function RegistroCreditos({
             className="w-full md:w-auto bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2"
           >
             {cargando ? (
-              "Guardando..."
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Guardando y analizando...
+              </>
             ) : (
               <>
-                <Plus className="w-4 h-4" /> Agregar a la Lista
+                <Plus className="w-4 h-4" /> Agregar y Analizar
               </>
             )}
           </button>
